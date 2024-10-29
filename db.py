@@ -2,8 +2,8 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import create_engine, SQLModel, Session
 
-DATABASE_URL = "sqlite:///database.db"
-engine = create_engine(DATABASE_URL, echo=True)
+file_name = "db.sqlite3"
+engine = create_engine(f"sqlite:///{file_name}", echo=True)
 
 def init_db():
     SQLModel.metadata.create_all(engine)
