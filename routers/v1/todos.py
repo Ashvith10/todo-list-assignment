@@ -1,24 +1,57 @@
-from fastapi import APIRouter
-from models.todo import TodoIn, TodoOut
+from fastapi import APIRouter, HTTPException
+from models.todo import Todo, TodoInput, TodoOutput
+from db import SessionDep
+from sqlmodel import select
 
 router = APIRouter(prefix="/todos")
 
-@router.get("/", response_model=list[TodoOut])
-async def read_todos():
-    return {"msg": "Get all todos."}
+@router.get("/", response_model=list[TodoOutput])
+async def read_todos(session: SessionDep):
+    todos = session.exec(select(Todo)).all()
 
-@router.post("/", response_model=TodoOut)
-async def create_todo(todo: TodoIn):
+    return todos
+
+@router.post("/", response_model=TodoOutput)
+async def create_todo(todo: TodoInput, session: SessionDep):
+    todo = Todo.model_validate(todo)
+
+    session.add(todo)
+    session.commit()
+    session.refresh(todo)
+
     return todo
 
-@router.get("/{id}", response_model=TodoOut)
-async def read_todo(id: int):
-    return {"msg": f"Get todo at id {id}."}
+@router.get("/{id}", response_model=TodoOutput)
+async def read_todo(id: int, session: SessionDep):
+    todo = session.get(Todo, id)
 
-@router.put("/{id}", response_model=TodoOut)
-async def update_todo(id: int, todo: TodoIn):
-    return {"msg": f"Update todo at id {id}."}
+    if not todo:
+        raise HTTPException(status_code=404, detail="Not found")
 
-@router.delete("/{id}")
-async def delete_todo(id: int):
-    return {"msg": f"Delete todo at {id}."}
+    return todo
+
+@router.put("/{id}")
+async def update_todo(id: int, todo_patch: TodoInput, session: SessionDep):
+    todo = session.get(Todo, id)
+
+    if not todo:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    todo_data = todo_patch.model_dump(exclude_unset=True)
+    todo.sqlmodel_update(todo_data)
+
+    session.add(todo)
+    session.commit()
+    session.refresh(todo)
+
+    return todo
+
+@router.delete("/{id}", status_code=204)
+async def delete_todo(id: int, session: SessionDep):
+    todo = session.get(Todo, id)
+
+    if not todo:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    session.delete(todo)
+    session.commit()
