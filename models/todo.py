@@ -1,10 +1,13 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from sqlmodel import SQLModel, Field
 
-class TodoIn(BaseModel):
+class TodoInput(SQLModel):
     title: str
     description: Optional[str] = Field(default=None)
     completed: Optional[bool] = Field(default=False)
 
-class TodoOut(TodoIn):
+class TodoOutput(TodoInput):
     id: Optional[int] = Field(default=None, primary_key=True)
+
+class Todo(TodoOutput, table=True):
+    pass
